@@ -1,0 +1,27 @@
+#app {
+    max-width: 25em;
+}
+
+#app div {
+    margin: 0.5em;
+}
+
+.rateDown::before {
+    color: rgb(198, 96, 84);
+}
+
+.rateDown:before {
+    content: "\25BC";
+    color: #e21b1b;
+    font-weight: bold;
+}
+
+.rateUp::before {
+    color: rgb(212, 243, 131);
+}
+
+.rateUp:before {
+    content: "\25B2";
+    color: #447c03;
+    font-weight: bold;
+}

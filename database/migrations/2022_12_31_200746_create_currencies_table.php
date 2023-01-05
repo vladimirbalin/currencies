@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer('nominal');
             $table->string('name');
             $table->decimal('value', 8, 4);
-            $table->date('date');
+            $table->date('date')->index();
             $table->timestamps();
         });
     }

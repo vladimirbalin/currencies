@@ -13,7 +13,6 @@ class MainController extends Controller
 {
     public function __construct(
         private CurrencyService    $currenciesService,
-        private CurrencyRepository $currenciesRepository
     )
     {
     }

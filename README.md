@@ -24,7 +24,11 @@
 
 - Репозиторий: [CurrencyRepository](./app/Repositories/CurrencyRepository.php), только для получения данных.
 - Сервисный слой: [CurrencyService](./app/Services/CurrencyService.php) для манипулирования данными, бизнес логика.
-- Контроллер: [MainController](./app/Http/Controllers/MainController.php) связывает два предыдущих, отдает response.
+- Контроллер: [MainController](./app/Http/Controllers/MainController.php)
+- Миграции: [database/migrations](./database/migrations)
+- Ресурсы: [app/Http/Resources](./app/Http/Resources)
+- Планировщик: TODO
+- Файл конфигурации: [config/currencies](./config/currencies.php)
 
 2. Фронтэнд - виджет на нативном js, который посылает запросы к нашему бэкэнду, полученные данные выводит в нужном виде.
 

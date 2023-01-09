@@ -30,7 +30,8 @@ class CurrencyRepository extends Repository
         array $currenciesCharCodes = ['USD', 'EUR']
     ): Collection|null
     {
-        return $this->start()
+        return $this
+            ->start()
             ->whereIn('char_code', $currenciesCharCodes)
             ->where('date', '=', function ($query) {
                 $query
@@ -49,7 +50,8 @@ class CurrencyRepository extends Repository
         array $currenciesCharCodes = ['USD', 'EUR']
     ): Collection|null
     {
-        return $this->start()
+        return $this
+            ->start()
             ->whereIn('char_code', $currenciesCharCodes)
             ->where('date', '=', $this->prevLatestDate())
             ->get();
@@ -72,7 +74,8 @@ class CurrencyRepository extends Repository
      */
     public function prevLatestDate(): mixed
     {
-        return $this->start()
+        return $this
+            ->start()
             ->where('date', '<', function ($query) {
                 $query
                     ->selectRaw('max(date)')
@@ -92,7 +95,8 @@ class CurrencyRepository extends Repository
         string $date
     ): Model|null
     {
-        return $this->start()
+        return $this
+            ->start()
             ->where([
                 ['char_code', '=', $currencyCharCode],
                 ['date', '=', $date]

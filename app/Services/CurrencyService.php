@@ -6,6 +6,7 @@ use App\Models\Currency;
 use App\Repositories\CurrencyRepository;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -23,18 +24,23 @@ class CurrencyService
      * Сделать запрос к эндпоинту цб и записать ответ в xml файл
      *
      * @throws GuzzleException
+     * @throws FileNotFoundException
      */
     public function fetchExchangeRatesToXmlFile(): void
     {
         $http = new Client();
-        $response = $http->get(
-            config('currencies.cbr_endpoint')
-        );
+        $response = $http
+            ->get(
+                config('currencies.cbr_endpoint')
+            );
         $xml = $response->getBody()->getContents();
-        Storage::put(
+
+        if (! Storage::put(
             config('currencies.xml_filename'),
             $xml
-        );
+        )) {
+            throw new FileNotFoundException(config('currencies.xml_filename'));
+        }
     }
 
     /**
@@ -57,11 +63,13 @@ class CurrencyService
             }
 
             //пробуем забрать из базы данных запись конкретной валюты, за дату из xml файла
-            $todayRateCurrency = $this->currencyRepository
-                ->getCurrency(
-                    $currency['charCode'],
-                    $currencies['date']
-                );
+            $todayRateCurrency =
+                $this
+                    ->currencyRepository
+                    ->getCurrency(
+                        $currency['charCode'],
+                        $currencies['date']
+                    );
 
             //если её нет в базе, значит это новые данные - создаём модель
             if (!$todayRateCurrency) {
@@ -139,10 +147,12 @@ class CurrencyService
         array $currenciesCharCodes = ['USD', 'EUR']
     ): Collection
     {
-        $latest = $this->currencyRepository
-            ->getAllLatest($currenciesCharCodes);
-        $prevLatest = $this->currencyRepository
-            ->getAllPrevLatest($currenciesCharCodes);
+        $latest =
+            $this->currencyRepository
+                ->getAllLatest($currenciesCharCodes);
+        $prevLatest =
+            $this->currencyRepository
+                ->getAllPrevLatest($currenciesCharCodes);
 
         //получаем вид ["USD" => ["char_code" => "USD","value" => "69.9346","date" => "2022-12-28"], "EUR" => ...]
         $prevLatest = $prevLatest->keyBy('char_code');

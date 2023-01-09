@@ -1,5 +1,7 @@
 #app {
     max-width: 25em;
+    border-radius: 12px;
+    box-shadow: rgb(0 16 61 / 7%) 0px 6px 20px;
 }
 
 #app div {

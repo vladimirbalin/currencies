@@ -1,3 +1,7 @@
+# Exchange rates application
+Приложение получающее значения курсов для заданного списка валют, проверяющее вырос или упал ли курс по сравнению
+с предыдущим значением курса. Виджет отображающий эти данные.
+
 ## Тех задание:
 
 Необходимо разработать следующую функциональность:
@@ -22,12 +26,13 @@
 1. Бэкэнд на Laravel, который посылает запросы на единственный endpoint цб, полученные данные(xml) записывает в xml файл,
    парсит его и записывает необходимые данные в базу данных.
 
-- Репозиторий: [CurrencyRepository](./app/Repositories/CurrencyRepository.php), только для получения данных.
-- Сервисный слой: [CurrencyService](./app/Services/CurrencyService.php) для манипулирования данными, бизнес логика.
+- Репозиторий: [CurrencyRepository](./app/Repositories/CurrencyRepository.php) - только для получения данных.
+- Сервисный слой: [CurrencyService](./app/Services/CurrencyService.php) - для манипулирования данными, бизнес логика.
 - Контроллер: [MainController](./app/Http/Controllers/MainController.php)
 - Миграции: [database/migrations](./database/migrations)
-- Ресурсы: [app/Http/Resources](./app/Http/Resources)
-- Планировщик: TODO
+- Ресурсы: [app/Http/Resources](./app/Http/Resources) - возвращаемые ресурсы фронту
+- Планировщик: [app/Console/Kernel.php](./app/Console/Kernel.php) - запуск заданий(Jobs) на обновление данных, полученных с ЦБ через определенный промежуток времени
+- Jobs: [app/Jobs](./app/Jobs) - задания на обновление данных
 - Файл конфигурации: [config/currencies](./config/currencies.php)
 
 2. Фронтэнд - виджет на нативном js, который посылает запросы к нашему бэкэнду, полученные данные выводит в нужном виде.
@@ -69,6 +74,14 @@ DB_PASSWORD=
 3. Проводим миграции:
  ```
 php artisan migrate
+ ```
+4. Запуск планировщика:
+ ```
+ php artisan schedule:work
+ ```
+5. Запуск обработчика очередей:
+ ```
+ php artisan queue:work
  ```
 
 ### API бэка, к которому обращается наш виджет

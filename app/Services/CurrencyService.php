@@ -29,10 +29,9 @@ class CurrencyService
     public function fetchExchangeRatesToXmlFile(): void
     {
         $http = new Client();
-        $response = $http
-            ->get(
-                config('currencies.cbr_endpoint')
-            );
+        $response = $http->get(
+            config('currencies.cbr_endpoint')
+        );
         $xml = $response->getBody()->getContents();
 
         if (! Storage::put(

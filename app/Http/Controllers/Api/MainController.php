@@ -19,8 +19,7 @@ class MainController extends Controller
     public function __invoke(Request $request): CurrenciesCollection
     {
         $charCodes = $request->get('currencies');
-        $latestCurrencies =
-            $this
+        $latestCurrencies = $this
                 ->currenciesService
                 ->getCurrencies($charCodes);
 

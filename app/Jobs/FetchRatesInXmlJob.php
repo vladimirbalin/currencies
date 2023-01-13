@@ -29,7 +29,7 @@ class FetchRatesInXmlJob implements ShouldQueue
      *
      * @return void
      */
-    public function handle(CurrencyService $currencyService)
+    public function handle(CurrencyService $currencyService): void
     {
         $currencyService->fetchExchangeRatesToXmlFile();
     }

@@ -4,59 +4,45 @@ namespace App\Services;
 
 use App\Models\Currency;
 use App\Repositories\CurrencyRepository;
-use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use LogicException;
 use Orchestra\Parser\Xml\Facade as XmlParser;
+use InvalidArgumentException;
 
 class CurrencyService
 {
     public function __construct(
-        private CurrencyRepository $currencyRepository
+        private CurrencyRepository        $currencyRepository,
+        private CurrenciesDownloadService $downloadService,
     )
     {
-    }
-
-    /**
-     * Сделать запрос к эндпоинту цб и записать ответ в xml файл
-     *
-     * @throws GuzzleException
-     * @throws FileNotFoundException
-     */
-    public function fetchExchangeRatesToXmlFile(): void
-    {
-        $http = new Client();
-        $response = $http->get(
-            config('currencies.cbr_endpoint')
-        );
-        $xml = $response->getBody()->getContents();
-
-        if (! Storage::put(
-            config('currencies.xml_filename'),
-            $xml
-        )) {
-            throw new FileNotFoundException(config('currencies.xml_filename'));
-        }
     }
 
     /**
      * Обновить или создать новые записи курсов валют в базе данных
      *
      * @return void
+     * @throws GuzzleException
      */
     public function updateOrCreateExchangeRatesInDb(): void
     {
-        $currencies = $this->parseXmlFileToArray();
+        $xml = $this->downloadService->fetch();
+        $currencies = $this->castXmlToArray($xml);
+
+        if ($this->currenciesConfigIsEmpty()) {
+            return;
+        }
 
         //идём по каждой валюте из массива, полученного из xml файла от цб
         foreach ($currencies['currencies'] as $currency) {
 
             //если в конфиге не задана валюта, пропускаем её
             if (
-                !$this->shouldGetCurrency($currency['charCode'])
+                ! $this->shouldGetCurrency($currency['charCode'])
             ) {
                 continue;
             }
@@ -71,7 +57,7 @@ class CurrencyService
                     );
 
             //если её нет в базе, значит это новые данные - создаём модель
-            if (!$todayRateCurrency) {
+            if (! $todayRateCurrency) {
                 $todayRateCurrency = new Currency();
             }
 
@@ -85,24 +71,21 @@ class CurrencyService
             $todayRateCurrency->date = $currencies['date'];
 
             //записываем в базу данных
-            $todayRateCurrency->save();
+            if (! $todayRateCurrency->save()) {
+                throw new LogicException('Cannot save current currency to db');
+            }
         }
     }
 
     /**
-     * Распарсить указанный в конфиге xml файл в массив
+     * Распарсить xml в массив
      *
+     * @param $xml
      * @return array
      */
-    public function parseXmlFileToArray(): array
+    public function castXmlToArray($xml): array
     {
-        $pathToXmlFile = Storage::disk('local')
-            ->path(
-                config('currencies.xml_filename')
-            );
-        $xml = XmlParser::load($pathToXmlFile);
-
-        $arr = $xml->parse(
+        $arr = XmlParser::extract($xml)->parse(
             [
                 'date' => ['uses' => '::Date'],
                 'name' => ['uses' => '::name'],
@@ -111,7 +94,6 @@ class CurrencyService
                 ]
             ]
         );
-
         $arr['date'] = $this->convertDateToDateString($arr['date']);
 
         return $arr;
@@ -141,19 +123,25 @@ class CurrencyService
      *
      * @param array $currenciesCharCodes
      * @return Collection
+     * @throws InvalidArgumentException
      */
     public function getCurrencies(
-        array $currenciesCharCodes = ['USD', 'EUR']
+        array $currenciesCharCodes
     ): Collection
     {
-        $latest =
-            $this->currencyRepository
-                ->getAllLatest($currenciesCharCodes);
-        $prevLatest =
-            $this->currencyRepository
-                ->getAllPrevLatest($currenciesCharCodes);
+        if (! isset($currenciesCharCodes)) {
+            throw new InvalidArgumentException('Currencies char codes are not provided');
+        }
 
-        //получаем вид ["USD" => ["char_code" => "USD","value" => "69.9346","date" => "2022-12-28"], "EUR" => ...]
+        $latest = $this
+            ->currencyRepository
+            ->getAllLatest($currenciesCharCodes);
+        $prevLatest = $this
+            ->currencyRepository
+            ->getAllPrevLatest($currenciesCharCodes);
+
+        //получаем вид ["USD" => ["char_code" => "USD","value" => "69.9346","date" => "2022-12-28"],
+        // "EUR" => ...]
         $prevLatest = $prevLatest->keyBy('char_code');
 
         $latest = $latest->map(function ($currency) use ($prevLatest) {
@@ -178,6 +166,7 @@ class CurrencyService
         }
 
         $configCurrencyCodes = config('currencies.currency_codes');
+
         return in_array(
             $charCode,
             $configCurrencyCodes
@@ -202,17 +191,29 @@ class CurrencyService
             );
     }
 
+    private function currenciesConfigIsEmpty(): bool
+    {
+        $configCurrencyCodes = config('currencies.currency_codes');
+
+        if (empty($configCurrencyCodes)) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Узнать, повысился ли рейт валюты к её предыдущему значению
      *
-     * @param $currency
-     * @param $prevLatest
+     * @param array $currency
+     * @param string $prevLatest
      * @return string
+     * @throws InvalidArgumentException
      */
-    private function assignStatus($currency, $prevLatest): string
+    private function assignStatus(array $currency, string $prevLatest): string
     {
-        if (!$currency || !$prevLatest) {
-            throw new \InvalidArgumentException('Passed wrong currency');
+        if (!isset($currency) || !isset($prevLatest)) {
+            throw new InvalidArgumentException('Passed invalid currency parameters');
         }
 
         $charCode = $currency['char_code'];
@@ -224,5 +225,18 @@ class CurrencyService
         }
 
         return 'same';
+    }
+
+
+    /**
+     * @throws FileNotFoundException
+     */
+    public function putToFile(string $filename, string $xml): void
+    {
+        if (! Storage::put($filename, $xml)) {
+            throw new FileNotFoundException(
+                "Couldn't put xml to file" . config('currencies.xml_filename')
+            );
+        }
     }
 }

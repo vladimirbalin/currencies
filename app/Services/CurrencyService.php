@@ -8,16 +8,15 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use LogicException;
-use Orchestra\Parser\Xml\Facade as XmlParser;
 use InvalidArgumentException;
 
 class CurrencyService
 {
     public function __construct(
-        private CurrencyRepository        $currencyRepository,
-        private CurrenciesDownloadService $downloadService,
+        private CurrencyRepository     $repository,
+        private CurrenciesFetchService $fetchService,
+        private XmlService             $xmlService
     )
     {
     }
@@ -30,14 +29,16 @@ class CurrencyService
      */
     public function updateOrCreateExchangeRatesInDb(): void
     {
-        $xml = $this->downloadService->fetch();
-        $currencies = $this->castXmlToArray($xml);
-
         if ($this->currenciesConfigIsEmpty()) {
             return;
         }
 
-        //идём по каждой валюте из массива, полученного из xml файла от цб
+        $xml = $this->fetchService->fetch();
+        $currencies = $this->xmlService->parseXmlToArray($xml);
+
+        $currencies['date'] = $this->convertDateToDateString($currencies['date']);
+
+        //идём по каждой валюте из массива, полученного из xml ресурса от цб
         foreach ($currencies['currencies'] as $currency) {
 
             //если в конфиге не задана валюта, пропускаем её
@@ -75,28 +76,6 @@ class CurrencyService
                 throw new LogicException('Cannot save current currency to db');
             }
         }
-    }
-
-    /**
-     * Распарсить xml в массив
-     *
-     * @param $xml
-     * @return array
-     */
-    public function castXmlToArray($xml): array
-    {
-        $arr = XmlParser::extract($xml)->parse(
-            [
-                'date' => ['uses' => '::Date'],
-                'name' => ['uses' => '::name'],
-                'currencies' => [
-                    'uses' => 'Valute[::ID>valuteId,NumCode>numCode,CharCode>charCode,Name>name,Value>value,Nominal>nominal]'
-                ]
-            ]
-        );
-        $arr['date'] = $this->convertDateToDateString($arr['date']);
-
-        return $arr;
     }
 
     private function convertDateToDateString(string $date): string
@@ -228,15 +207,4 @@ class CurrencyService
     }
 
 
-    /**
-     * @throws FileNotFoundException
-     */
-    public function putToFile(string $filename, string $xml): void
-    {
-        if (! Storage::put($filename, $xml)) {
-            throw new FileNotFoundException(
-                "Couldn't put xml to file" . config('currencies.xml_filename')
-            );
-        }
-    }
 }

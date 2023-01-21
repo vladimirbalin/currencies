@@ -4,10 +4,8 @@ namespace App\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Support\Facades\Storage;
 
-class CurrenciesDownloadService
+class CurrenciesFetchService
 {
     public function __construct(
         private Client $guzzle
@@ -17,11 +15,11 @@ class CurrenciesDownloadService
 
     /**
      * Сделать запрос к эндпоинту цб
-//     * @return Результирующий xml
+     * @return string Результирующий xml
      *
      * @throws GuzzleException
      */
-    public function fetch()
+    public function fetch(): string
     {
         $response = $this->guzzle->get(
             config('currencies.cbr_endpoint')

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CurrenciesRequest;
 use App\Http\Resources\CurrenciesCollection;
 use App\Repositories\CurrencyRepository;
 use App\Services\CurrencyService;
@@ -18,9 +19,11 @@ class MainController extends Controller
     {
     }
 
-    public function __invoke(Request $request): CurrenciesCollection
+    public function __invoke(
+        CurrenciesRequest $request
+    ): CurrenciesCollection
     {
-        $charCodes = $request->get('currencies');
+        $charCodes = $request['currencies'];
 
         $latest = $this->repository->getAllLatest($charCodes);
         $prevLatest = $this->repository->getAllPrevLatest($charCodes);

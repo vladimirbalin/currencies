@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Currency;
 use App\Repositories\CurrencyRepository;
 use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
@@ -25,7 +25,7 @@ class CurrencyService
      * Обновить или создать новые записи курсов валют в базе данных
      *
      * @return void
-     * @throws GuzzleException
+     * @throws GuzzleException|LogicException
      */
     public function updateOrCreateExchangeRatesInDb(): void
     {
@@ -50,9 +50,7 @@ class CurrencyService
 
             //пробуем забрать из базы данных запись конкретной валюты, за дату из xml файла
             $todayRateCurrency =
-                $this
-                    ->currencyRepository
-                    ->getCurrency(
+                $this->repository->getCurrency(
                         $currency['charCode'],
                         $currencies['date']
                     );
@@ -100,31 +98,24 @@ class CurrencyService
      * Получить коллекцию указанного списка валют, с полем status,
      * значение которого указывает на изменение value к предыдущему обновлению
      *
-     * @param array $currenciesCharCodes
-     * @return Collection
-     * @throws InvalidArgumentException
+     * @param Collection $latest Коллекция курсов валют, за последнюю дату обновления
+     * @param Collection $prevLatest Коллекция курсов валют, за предпоследнюю дату обновления
+     * @return Collection Коллекция с полем 'status' - в котором указано,
+     * увеличился или упал курс относительно предыдущего
      */
-    public function getCurrencies(
-        array $currenciesCharCodes
+    public function comparedLatestWithPrevious(
+        Collection $latest,
+        Collection $prevLatest
     ): Collection
     {
-        if (! isset($currenciesCharCodes)) {
-            throw new InvalidArgumentException('Currencies char codes are not provided');
-        }
-
-        $latest = $this
-            ->currencyRepository
-            ->getAllLatest($currenciesCharCodes);
-        $prevLatest = $this
-            ->currencyRepository
-            ->getAllPrevLatest($currenciesCharCodes);
-
-        //получаем вид ["USD" => ["char_code" => "USD","value" => "69.9346","date" => "2022-12-28"],
-        // "EUR" => ...]
-        $prevLatest = $prevLatest->keyBy('char_code');
-
         $latest = $latest->map(function ($currency) use ($prevLatest) {
-            $currency['status'] = $this->assignStatus($currency, $prevLatest);
+            $currentCharCode = $currency['char_code'];
+            $currency['status'] = $this->assignStatus(
+                $currency,
+                $prevLatest
+                    ->where('char_code', '=', $currentCharCode)
+                    ->first()
+            );
             return $currency;
         });
 
@@ -184,22 +175,19 @@ class CurrencyService
     /**
      * Узнать, повысился ли рейт валюты к её предыдущему значению
      *
-     * @param array $currency
-     * @param string $prevLatest
+     * @param Model $latest
+     * @param Model $prevLatest
      * @return string
-     * @throws InvalidArgumentException
      */
-    private function assignStatus(array $currency, string $prevLatest): string
+    private function assignStatus(Model $latest, Model $prevLatest): string
     {
-        if (!isset($currency) || !isset($prevLatest)) {
+        if (! isset($latest) || ! isset($prevLatest)) {
             throw new InvalidArgumentException('Passed invalid currency parameters');
         }
 
-        $charCode = $currency['char_code'];
-
-        if ($currency['value'] < $prevLatest[$charCode]['value']) {
+        if ($latest['value'] < $prevLatest['value']) {
             return 'rateDown';
-        } elseif ($currency['value'] > $prevLatest[$charCode]['value']) {
+        } elseif ($latest['value'] > $prevLatest['value']) {
             return 'rateUp';
         }
 

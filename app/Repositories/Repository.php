@@ -18,7 +18,7 @@ abstract class Repository
      */
     abstract protected function getModelClass(): string;
 
-    public function start(): Model
+    public function model(): Model
     {
         return clone $this->model;
     }

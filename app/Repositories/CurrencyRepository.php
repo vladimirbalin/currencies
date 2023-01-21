@@ -5,7 +5,7 @@ namespace App\Repositories;
 use App\Models\Currency;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-
+use InvalidArgumentException;
 
 class CurrencyRepository extends Repository
 {
@@ -24,14 +24,19 @@ class CurrencyRepository extends Repository
      * Получить коллекцию указанных курсов валют, за последнюю дату обновления
      *
      * @param array $currenciesCharCodes
-     * @return Collection|null
+     * @return Collection
      */
     public function getAllLatest(
-        array $currenciesCharCodes = ['USD', 'EUR']
-    ): Collection|null
+        array $currenciesCharCodes
+    ): Collection
     {
+        if(! isset($currenciesCharCodes)){
+            throw new InvalidArgumentException('Currencies char codes array wasn\'t provided');
+        }
+
         return $this
-            ->start()
+            ->model()
+            ->newQuery()
             ->whereIn('char_code', $currenciesCharCodes)
             ->where('date', '=', function ($query) {
                 $query
@@ -44,14 +49,19 @@ class CurrencyRepository extends Repository
      * Получить коллекцию указанных курсов валют, за предпоследнюю дату обновления
      *
      * @param array $currenciesCharCodes
-     * @return Collection|null
+     * @return Collection
      */
     public function getAllPrevLatest(
-        array $currenciesCharCodes = ['USD', 'EUR']
-    ): Collection|null
+        array $currenciesCharCodes
+    ): Collection
     {
+        if(! isset($currenciesCharCodes)){
+            throw new InvalidArgumentException('Currencies char codes array wasn\'t provided');
+        }
+
         return $this
-            ->start()
+            ->model()
+            ->newQuery()
             ->whereIn('char_code', $currenciesCharCodes)
             ->where('date', '=', $this->prevLatestDate())
             ->get();
@@ -64,7 +74,10 @@ class CurrencyRepository extends Repository
      */
     public function latestDate(): mixed
     {
-        return $this->start()->max('date');
+        return $this
+            ->model()
+            ->newQuery()
+            ->max('date');
     }
 
     /**
@@ -75,7 +88,8 @@ class CurrencyRepository extends Repository
     public function prevLatestDate(): mixed
     {
         return $this
-            ->start()
+            ->model()
+            ->newQuery()
             ->where('date', '<', function ($query) {
                 $query
                     ->selectRaw('max(date)')
@@ -96,7 +110,8 @@ class CurrencyRepository extends Repository
     ): Model|null
     {
         return $this
-            ->start()
+            ->model()
+            ->newQuery()
             ->where([
                 ['char_code', '=', $currencyCharCode],
                 ['date', '=', $date]

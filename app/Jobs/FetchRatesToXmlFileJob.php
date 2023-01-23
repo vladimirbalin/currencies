@@ -12,19 +12,23 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class FetchRatesInXmlJob implements ShouldQueue
+class FetchRatesToXmlFileJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
-     * Create a new job instance.
+     * The number of times the job may be attempted.
      *
-     * @return void
+     * @var int
      */
-    public function __construct()
-    {
-        //
-    }
+    public int $tries = 3;
+
+    /**
+     * Seconds between tries
+     *
+     * @var int
+     */
+    public int $backoff = 5;
 
     /**
      * Execute the job.

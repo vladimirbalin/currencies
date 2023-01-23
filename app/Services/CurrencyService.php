@@ -4,12 +4,12 @@ namespace App\Services;
 
 use App\Models\Currency;
 use App\Repositories\CurrencyRepository;
+use Closure;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
-use InvalidArgumentException;
 
 class CurrencyService
 {
@@ -42,35 +42,29 @@ class CurrencyService
         foreach ($currencies['currencies'] as $currency) {
 
             //если в конфиге не задана валюта, пропускаем её
-            if (
-                ! $this->shouldGetCurrency($currency['charCode'])
-            ) {
+            if (! $this->shouldGetCurrency($currency['charCode'])) {
                 continue;
             }
 
             //пробуем забрать из базы данных запись конкретной валюты, за дату из xml файла
-            $todayRateCurrency =
+            $lastUpdatedCurrency =
                 $this->repository->getCurrency(
-                        $currency['charCode'],
-                        $currencies['date']
-                    );
+                    $currency['charCode'],
+                    $currencies['date']
+                );
 
-            //если её нет в базе, значит это новые данные - создаём модель
-            if (! $todayRateCurrency) {
-                $todayRateCurrency = new Currency();
+            if (! $lastUpdatedCurrency) {
+                $lastUpdatedCurrency = new Currency();
             }
 
             //присваиваем или обновляем значения модели
-            $todayRateCurrency->valute_id = $currency['valuteId'];
-            $todayRateCurrency->num_code = $currency['numCode'];
-            $todayRateCurrency->char_code = $currency['charCode'];
-            $todayRateCurrency->nominal = $currency['nominal'];
-            $todayRateCurrency->name = $currency['name'];
-            $todayRateCurrency->value = $this->convertValueStringToFloat($currency['value']);
-            $todayRateCurrency->date = $currencies['date'];
+            $this->assignOrUpdateProperties(
+                $lastUpdatedCurrency,
+                $currency,
+                $currencies['date']
+            );
 
-            //записываем в базу данных
-            if (! $todayRateCurrency->save()) {
+            if (! $lastUpdatedCurrency->save()) {
                 throw new LogicException('Cannot save current currency to db');
             }
         }
@@ -81,6 +75,21 @@ class CurrencyService
         return Carbon::createFromFormat(
             'd.m.Y', $date
         )->toDateString();
+    }
+
+    private function assignOrUpdateProperties(
+        Currency $todayRateCurrency,
+        array    $currency,
+        string   $date
+    ): void
+    {
+        $todayRateCurrency->valute_id = $currency['valuteId'];
+        $todayRateCurrency->num_code = $currency['numCode'];
+        $todayRateCurrency->char_code = $currency['charCode'];
+        $todayRateCurrency->nominal = $currency['nominal'];
+        $todayRateCurrency->name = $currency['name'];
+        $todayRateCurrency->value = $this->convertValueStringToFloat($currency['value']);
+        $todayRateCurrency->date = $date;
     }
 
     /**
@@ -98,28 +107,51 @@ class CurrencyService
      * Получить коллекцию указанного списка валют, с полем status,
      * значение которого указывает на изменение value к предыдущему обновлению
      *
-     * @param Collection $latest Коллекция курсов валют, за последнюю дату обновления
-     * @param Collection $prevLatest Коллекция курсов валют, за предпоследнюю дату обновления
-     * @return Collection Коллекция с полем 'status' - в котором указано,
-     * увеличился или упал курс относительно предыдущего
+     * @param array $charCodes
+     * @return Collection Коллекция валют с добавленным полем 'status' в каждой,
+     * в котором указано, увеличился или упал курс относительно предыдущего обновления
      */
-    public function comparedLatestWithPrevious(
-        Collection $latest,
-        Collection $prevLatest
+    public function getLatestWithStatus(
+        array $charCodes
     ): Collection
     {
-        $latest = $latest->map(function ($currency) use ($prevLatest) {
-            $currentCharCode = $currency['char_code'];
-            $currency['status'] = $this->assignStatus(
-                $currency,
+        $latest = $this->repository->getAllLatest($charCodes);
+        $prevLatest = $this->repository->getAllPrevLatest($charCodes);
+
+        return $latest->map($this->callback($prevLatest));
+    }
+
+    private function callback($prevLatest): Closure
+    {
+        return function ($latest) use ($prevLatest) {
+            $currentCharCode = $latest['char_code'];
+
+            $latest['status'] = $this->assignStatus(
+                $latest,
                 $prevLatest
                     ->where('char_code', '=', $currentCharCode)
                     ->first()
             );
-            return $currency;
-        });
+            return $latest;
+        };
+    }
 
-        return $latest;
+    /**
+     * Узнать, повысился ли рейт валюты к её предыдущему значению
+     *
+     * @param Model $latest
+     * @param Model $prevLatest
+     * @return string
+     */
+    private function assignStatus(Model $latest, Model $prevLatest): string
+    {
+        if ($latest['value'] < $prevLatest['value']) {
+            return 'rateDown';
+        } elseif ($latest['value'] > $prevLatest['value']) {
+            return 'rateUp';
+        }
+
+        return 'same';
     }
 
     /**
@@ -171,28 +203,4 @@ class CurrencyService
 
         return false;
     }
-
-    /**
-     * Узнать, повысился ли рейт валюты к её предыдущему значению
-     *
-     * @param Model $latest
-     * @param Model $prevLatest
-     * @return string
-     */
-    private function assignStatus(Model $latest, Model $prevLatest): string
-    {
-        if (! isset($latest) || ! isset($prevLatest)) {
-            throw new InvalidArgumentException('Passed invalid currency parameters');
-        }
-
-        if ($latest['value'] < $prevLatest['value']) {
-            return 'rateDown';
-        } elseif ($latest['value'] > $prevLatest['value']) {
-            return 'rateUp';
-        }
-
-        return 'same';
-    }
-
-
 }

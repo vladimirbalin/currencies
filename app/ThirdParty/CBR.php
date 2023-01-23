@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Services;
+namespace App\ThirdParty;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 
-class CurrenciesFetchService
+class CBR
 {
     public function __construct(
         private Client $guzzle
@@ -19,7 +19,7 @@ class CurrenciesFetchService
      *
      * @throws GuzzleException
      */
-    public function fetch(): string
+    public function fetchCurrencies(): string
     {
         $response = $this->guzzle->get(
             config('currencies.cbr_endpoint')

@@ -2,10 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Services\CurrencyService;
-use GuzzleHttp\Exception\GuzzleException;
+use App\Services\Currency\CurrencyService;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -34,7 +32,6 @@ class UpdateRatesJob implements ShouldQueue
      *
      * @param CurrencyService $currencyService
      * @return void
-     * @throws GuzzleException
      */
     public function handle(CurrencyService $currencyService): void
     {

@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Services\CurrenciesFetchService;
-use App\Services\XmlService;
+use App\ThirdParty\CBR;
+use App\ThirdParty\XmlService;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
@@ -33,17 +33,17 @@ class FetchRatesToXmlFileJob implements ShouldQueue
     /**
      * Execute the job.
      *
-     * @param CurrenciesFetchService $fetchService
+     * @param CBR $cbrClient
      * @param XmlService $xmlService
      * @return void
      * @throws FileNotFoundException
      * @throws GuzzleException
      */
     public function handle(
-        CurrenciesFetchService $fetchService,
-        XmlService             $xmlService): void
+        CBR        $cbrClient,
+        XmlService $xmlService): void
     {
-        $xml = $fetchService->fetch();
+        $xml = $cbrClient->fetchCurrencies();
         $xmlService->putToFile(
             config('currencies.xml_filename'),
             $xml

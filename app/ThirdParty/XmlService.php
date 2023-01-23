@@ -1,19 +1,12 @@
 <?php
 
-namespace App\Services;
+namespace App\ThirdParty;
 
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\Storage;
-use Orchestra\Parser\Xml\Reader;
 
 class XmlService
 {
-    public function __construct(
-        private Reader $xmlReader
-    )
-    {
-    }
-
     /**
      * Распарсить xml в массив
      *
@@ -22,18 +15,8 @@ class XmlService
      */
     public function parseXmlToArray(string $xml): array
     {
-        $schema = [
-            'date' => ['uses' => '::Date'],
-            'name' => ['uses' => '::name'],
-            'currencies' => [
-                'uses' => 'Valute[::ID>valuteId,NumCode>numCode,CharCode>charCode,Name>name,Value>value,Nominal>nominal]'
-            ]
-        ];
-
-        $arr = $this
-            ->xmlReader
-            ->extract($xml)
-            ->parse($schema);
+        $json = json_encode($xml);
+        $arr = json_decode($json,TRUE);
 
         return $arr;
     }

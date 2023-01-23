@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Currency;
 
 use App\Models\Currency;
 use App\Repositories\CurrencyRepository;
+use App\ThirdParty\XmlService;
 use Closure;
-use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -13,19 +13,22 @@ use LogicException;
 
 class CurrencyService
 {
+    private array $configCurrencyCodes;
+
     public function __construct(
         private CurrencyRepository     $repository,
-        private CurrenciesFetchService $fetchService,
-        private XmlService             $xmlService
+        private XmlService             $xmlService,
+        private string                 $xmlSource,
     )
     {
+        $this->configCurrencyCodes = config('currencies.currency_codes');
     }
 
     /**
      * Обновить или создать новые записи курсов валют в базе данных
      *
      * @return void
-     * @throws GuzzleException|LogicException
+     * @throws LogicException
      */
     public function updateOrCreateExchangeRatesInDb(): void
     {
@@ -33,8 +36,9 @@ class CurrencyService
             return;
         }
 
-        $xml = $this->fetchService->fetch();
-        $currencies = $this->xmlService->parseXmlToArray($xml);
+        $currencies = $this
+            ->xmlService
+            ->parseXmlToArray($this->xmlSource);
 
         $currencies['date'] = $this->convertDateToDateString($currencies['date']);
 
@@ -47,24 +51,24 @@ class CurrencyService
             }
 
             //пробуем забрать из базы данных запись конкретной валюты, за дату из xml файла
-            $lastUpdatedCurrency =
+            $lastUpdateCurrency =
                 $this->repository->getCurrency(
                     $currency['charCode'],
                     $currencies['date']
                 );
 
-            if (! $lastUpdatedCurrency) {
-                $lastUpdatedCurrency = new Currency();
+            if (! $lastUpdateCurrency) {
+                $lastUpdateCurrency = new Currency();
             }
 
             //присваиваем или обновляем значения модели
             $this->assignOrUpdateProperties(
-                $lastUpdatedCurrency,
+                $lastUpdateCurrency,
                 $currency,
                 $currencies['date']
             );
 
-            if (! $lastUpdatedCurrency->save()) {
+            if (! $lastUpdateCurrency->save()) {
                 throw new LogicException('Cannot save current currency to db');
             }
         }
@@ -108,7 +112,7 @@ class CurrencyService
      * значение которого указывает на изменение value к предыдущему обновлению
      *
      * @param array $charCodes
-     * @return Collection Коллекция валют с добавленным полем 'status' в каждой,
+     * @return Collection<Currency> Коллекция валют с добавленным полем 'status' в каждой,
      * в котором указано, увеличился или упал курс относительно предыдущего обновления
      */
     public function getLatestWithStatus(
@@ -167,11 +171,9 @@ class CurrencyService
             return true;
         }
 
-        $configCurrencyCodes = config('currencies.currency_codes');
-
         return in_array(
             $charCode,
-            $configCurrencyCodes
+            $this->configCurrencyCodes
         );
     }
 
@@ -184,20 +186,16 @@ class CurrencyService
      */
     private function shouldGetAllCurrencies(): bool
     {
-        $configCurrencyCodes = config('currencies.currency_codes');
-
-        return count($configCurrencyCodes) == 1 &&
+        return count($this->configCurrencyCodes) == 1 &&
             in_array(
                 '*',
-                $configCurrencyCodes
+                $this->configCurrencyCodes
             );
     }
 
     private function currenciesConfigIsEmpty(): bool
     {
-        $configCurrencyCodes = config('currencies.currency_codes');
-
-        if (empty($configCurrencyCodes)) {
+        if (empty($this->configCurrencyCodes)) {
             return true;
         }
 

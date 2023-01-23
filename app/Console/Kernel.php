@@ -11,16 +11,14 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      *
-     * @param \Illuminate\Console\Scheduling\Schedule $schedule
+     * @param Schedule $schedule
      * @return void
      */
-    protected function schedule(Schedule $schedule)
+    protected function schedule(Schedule $schedule): void
     {
         $schedule->call(function () {
-            Bus::chain([
-                new \App\Jobs\FetchRatesInXmlJob,
-                new \App\Jobs\UpdateRatesJob
-            ])->dispatch();
+            \App\Jobs\FetchRatesToXmlFileJob::dispatch();
+            \App\Jobs\UpdateRatesJob::dispatch();
         })->everyTwoHours();
     }
 

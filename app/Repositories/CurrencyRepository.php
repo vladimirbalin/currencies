@@ -9,12 +9,6 @@ use InvalidArgumentException;
 
 class CurrencyRepository extends Repository
 {
-    public function __construct()
-    {
-        parent::__construct();
-
-    }
-
     protected function getModelClass(): string
     {
         return Currency::class;

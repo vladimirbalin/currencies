@@ -7,7 +7,8 @@
 ```
 app
 ├── Console
-│   └── Kernel.php -- запуск заданий(Jobs) на обновление данных, полученных с ЦБ через определенный промежуток времени
+│   └── Kernel.php -- запуск заданий(Jobs) на обновление данных, 
+│                     полученных с ЦБ через определенный промежуток времени
 ├── Http
 │   ├── Controllers
 │   │   └── Api
@@ -20,12 +21,12 @@ app
 │   └── UpdateRatesJob.php
 ├── Providers
 │   └── AppServiceProvider.php         -- биндинг зависимостей
-├── Repositories                       
-│   ├── CurrencyRepository.php         -- для получения данных
-├── Services
+├── Repositories                       -- для получения данных
+│   ├── CurrencyRepository.php         
+├── Services                           -- для манипулирования данными, бизнес логика
 │   └── Currency
-│       └── CurrencyService.php        -- для манипулирования данными, бизнес логика
-├── ThirdParty                         -- классы ЦБР, XMLService
+│       └── CurrencyService.php        
+├── ThirdParty                         -- вспомогательные классы ЦБР, XMLService
 │   ├── CBR.php
 │   └── XmlService.php 
 │
@@ -33,11 +34,15 @@ config
  └── currencies.php                    -- файл конфигурации
 ```
 2. Фронтэнд - виджет на нативном js, который посылает запросы к нашему бэкэнду, полученные данные выводит в нужном виде.
-
-- Директория [widget](./widget)
-- Входной [index.js](./widget/js/index.js)
-- Основные функции [mainFunction.js](./widget/js/includes/mainFunctions.js)
-- Конфигурация [config.js](./widget/js/config.js)
+```
+widget
+└── js
+    ├── config.js            -- конфигурация
+    ├── includes
+    │   ├── helpers.js
+    │   └── mainFunctions.js -- основные функции
+    └── index.js             -- входной скрипт
+```
 
 ## Конфигурирование:
 **Бэкэнд**:

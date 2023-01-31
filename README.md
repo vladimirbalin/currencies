@@ -3,18 +3,35 @@
 с предыдущим значением курса. Виджет отображающий эти данные.
 
 ## Реализовано
-1. Бэкэнд на Laravel, который посылает запрос на endpoint цб, парсит xml его и записывает необходимые данные в базу данных.
-
-- Контроллер: [MainController](./app/Http/Controllers/Api/MainController.php)
-- Репозиторий: [CurrencyRepository](./app/Repositories/CurrencyRepository.php) для получения данных.
-- Сервисный слой: [CurrencyService](./app/Services/Currency/CurrencyService.php) для манипулирования данными, бизнес логика.
-- Вспомогательные классы: [app/ThirdParty](./app/ThirdParty) классы ЦБР, XMLService
-- Миграции: [database/migrations](./database/migrations)
-- Ресурсы: [app/Http/Resources](./app/Http/Resources) - возвращаемые ресурсы фронту
-- Планировщик: [app/Console/Kernel.php](./app/Console/Kernel.php) - запуск заданий(Jobs) на обновление данных, полученных с ЦБ через определенный промежуток времени
-- Jobs: [app/Jobs](./app/Jobs) - задания на обновление данных и другие
-- Файл конфигурации: [config/currencies](./config/currencies.php)
-
+1. Бэкэнд на Laravel, который посылает запрос на endpoint цб, парсит xml и записывает необходимые данные в базу данных.
+```
+app
+├── Console
+│   └── Kernel.php -- запуск заданий(Jobs) на обновление данных, полученных с ЦБ через определенный промежуток времени
+├── Http
+│   ├── Controllers
+│   │   └── Api
+│   │       └── MainController.php
+│   └── Resources                      -- возвращаемые ресурсы фронту                   
+│       ├── CurrenciesCollection.php 
+│       └── CurrencyResource.php     
+├── Jobs                               -- задания на обновление данных и другие
+│   ├── FetchRatesToXmlFileJob.php 
+│   └── UpdateRatesJob.php
+├── Providers
+│   └── AppServiceProvider.php         -- биндинг зависимостей
+├── Repositories                       
+│   ├── CurrencyRepository.php         -- для получения данных
+├── Services
+│   └── Currency
+│       └── CurrencyService.php        -- для манипулирования данными, бизнес логика
+├── ThirdParty                         -- классы ЦБР, XMLService
+│   ├── CBR.php
+│   └── XmlService.php 
+│
+config
+ └── currencies.php                    -- файл конфигурации
+```
 2. Фронтэнд - виджет на нативном js, который посылает запросы к нашему бэкэнду, полученные данные выводит в нужном виде.
 
 - Директория [widget](./widget)

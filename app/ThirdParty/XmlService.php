@@ -2,40 +2,67 @@
 
 namespace App\ThirdParty;
 
+use Exception;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\Storage;
-use Orchestra\Parser\Xml\Reader;
+use Illuminate\Support\Str;
+use SimpleXMLElement;
 
 class XmlService
 {
-    public function __construct(
-        private Reader $xmlReader
-    )
-    {
-    }
-
     /**
      * Распарсить xml в массив
      *
      * @param string $xml
+     * @param bool $isUrl Является $xml url, по которому лежит xml
      * @return array
+     *
+     * Возвращает массив вида:
+     * [
+     *  date => ...,
+     *  name => ...,
+     *  currencies => [
+     *                  EUR => [
+     *                          id => ...,
+     *                          num_code => ...,
+     *                          ... ]
+     *                          ],
+     *                  USD => [...],
+     *                  ...,
+     * ]
+     * @throws Exception
      */
-    public function parseXmlToArray(string $xml): array
+    public function parseXmlToArray(
+        string $xml,
+        bool   $isUrl
+    ): array
     {
-        $schema = [
-            'date' => ['uses' => '::Date'],
-            'name' => ['uses' => '::name'],
-            'currencies' => [
-                'uses' => 'Valute[::ID>valuteId,NumCode>numCode,CharCode>charCode,Name>name,Value>value,Nominal>nominal]'
-            ]
-        ];
+        $xmlObject = new SimpleXMLElement($xml, dataIsURL: $isUrl);
 
-        $arr = $this
-            ->xmlReader
-            ->extract($xml)
-            ->parse($schema);
+        return $this->createArrayFrom($xmlObject);
+    }
 
-        return $arr;
+    private function createArrayFrom(SimpleXMLElement $xmlObject): array
+    {
+        $parsed = [];
+
+        foreach ($xmlObject->attributes() as $name => $attribute) {
+            $parsed[strtolower($name)] = (string)$attribute;
+        }
+
+        foreach ($xmlObject->Valute as $valute) {
+            $charCode = (string)$valute->CharCode;
+
+            foreach ($valute->attributes() as $name => $attribute) {
+                $parsed['currencies'][$charCode][strtolower($name)] = (string)$attribute;
+            }
+
+            foreach ($valute->children() as $key => $child) {
+                $parsed['currencies'][$charCode][Str::snake($key)] = (string)$child;
+            }
+        }
+
+        return $parsed;
     }
 
     /**
@@ -43,7 +70,7 @@ class XmlService
      */
     public function putToFile(string $filename, string $xml): void
     {
-        if (! Storage::put($filename, $xml)) {
+        if (!Storage::put($filename, $xml)) {
             throw new FileNotFoundException(
                 "Couldn't put xml to file" . config('currencies.xml_filename')
             );

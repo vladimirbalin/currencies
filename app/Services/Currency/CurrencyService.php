@@ -38,7 +38,7 @@ class CurrencyService
 
         $currencies = $this
             ->xmlService
-            ->parseXmlToArray($this->xmlSource);
+            ->parseXmlToArray($this->xmlSource, false);
 
         $currencies['date'] = $this->convertDateToDateString($currencies['date']);
 
@@ -46,14 +46,14 @@ class CurrencyService
         foreach ($currencies['currencies'] as $currency) {
 
             //если в конфиге не задана валюта, пропускаем её
-            if (! $this->shouldGetCurrency($currency['charCode'])) {
+            if (! $this->shouldGetCurrency($currency['char_code'])) {
                 continue;
             }
 
             //пробуем забрать из базы данных запись конкретной валюты, за дату из xml файла
             $lastUpdateCurrency =
                 $this->repository->getCurrency(
-                    $currency['charCode'],
+                    $currency['char_code'],
                     $currencies['date']
                 );
 
@@ -87,9 +87,9 @@ class CurrencyService
         string   $date
     ): void
     {
-        $todayRateCurrency->valute_id = $currency['valuteId'];
-        $todayRateCurrency->num_code = $currency['numCode'];
-        $todayRateCurrency->char_code = $currency['charCode'];
+        $todayRateCurrency->valute_id = $currency['id'];
+        $todayRateCurrency->num_code = $currency['num_code'];
+        $todayRateCurrency->char_code = $currency['char_code'];
         $todayRateCurrency->nominal = $currency['nominal'];
         $todayRateCurrency->name = $currency['name'];
         $todayRateCurrency->value = $this->convertValueStringToFloat($currency['value']);

@@ -17,16 +17,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //парсер xml
-        $this->app->bind(Reader::class, function ($app){
-            return new Reader($app->make(Document::class));
-        });
-
         // передаем нужный источник xml, например из ответа API либо файл
         $this->app->when(CurrencyService::class)
             ->needs('$xmlSource')
             ->give(function ($app) {
-                return $app->make(CBR::class)->fetchCurrencies();
+                $cbr = $app->make(CBR::class);
+                return $cbr->fetchCurrencies();
             });
     }
 
